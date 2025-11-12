@@ -70,9 +70,6 @@ X-RateLimit-Reset: 1731392640
 
 ---
 
-## ⚙️ **`TASK3_DBOptimization.md`**
-
-```markdown
 # ⚙️ Task 3 — Database Query Optimization
 
 **Priority:** High  
