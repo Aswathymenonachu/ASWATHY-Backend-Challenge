@@ -1,60 +1,64 @@
-Task 1: Fix SOLID Principle Violations
+# 🧱 Backend Engineering Challenge — Completed Implementation
 
-Priority: High
-Files:
+---
 
-src/order/order.service.ts
+## 🎯 **Task 1: Fix SOLID Principle Violations**
 
-src/order/validator.service.ts
+**Priority:** High  
+**Files:**
+- `src/order/order.service.ts`
+- `src/order/validator.service.ts`
+- `src/order/totals.service.ts`
+- `src/shared/domain-events.ts`
 
-src/order/totals.service.ts
+### 🧩 **Implemented Fixes**
+- Refactored **`OrderService`** to follow **Single Responsibility Principle (SRP)**:
+  - **`OrderValidator`** → Handles input validation and business rule enforcement.  
+  - **`TotalsService`** → Calculates discounts, taxes, and order totals.  
+  - **`DomainEvents`** → Manages side effects (emails, notifications, logs).  
+- Removed direct side-effects (`sendOrderConfirmationEmail`, `sendShippingNotification`) from `OrderService`.  
+- Introduced **`DomainEvents.publish()`** to trigger domain-level notifications.  
+- Implemented **Dependency Injection** for modular service composition.  
+- Added consistent **error handling** using NestJS’s `BadRequestException`.  
 
-src/shared/domain-events.ts
-
- Implemented Fixes
-
-Refactored OrderService to follow Single Responsibility:
-
-OrderValidator → Validates input DTOs and business rules.
-
-TotalsService → Handles discounts, taxes, and total calculations.
-
-DomainEvents → Manages side-effects (email, notification logs).
-
-Removed direct side-effects from service (sendOrderConfirmationEmail, sendShippingNotification) and replaced with DomainEvents.publish().
-
-Used Dependency Injection for all helper services.
-
-Introduced cleaner error handling with Nest’s BadRequestException.
-
-Example
+### 🧠 **Example**
+```ts
 await this.events.publish('order.created', {
   orderId: savedOrder.id,
   customerEmail: customer.email,
 });
 
-Task 2: Implement Rate Limiting
+# 🚦 Task 2 — Implement Rate Limiting
 
-Priority: High
-File: src/common/location-rate-limit.guard.ts
+**Priority:** High  
+**File:** `src/common/location-rate-limit.guard.ts`
 
- Implemented Fixes
+---
 
-Added Location-based rate limiting using Redis.
+## 🧩 Implemented Fixes
 
-Limit: 10 requests per minute per locationId.
+- Implemented **location-based rate limiting** to control the number of orders created from the same location.
+- Used **Redis** as the in-memory data store for counting requests.
+- Configured limit: **10 requests per minute per `locationId`**.
+- Returns **HTTP 429 Too Many Requests** when the limit is exceeded.
+- Added standard headers for transparency:
+  - `X-RateLimit-Limit` → The total allowed requests per window.
+  - `X-RateLimit-Remaining` → Remaining requests before hitting the limit.
+  - `X-RateLimit-Reset` → Unix timestamp when the window resets.
+- Atomic Redis commands (`INCR`, `EXPIRE NX`) ensure consistent counting under concurrency.
 
-Returns standard headers:
+---
 
-X-RateLimit-Limit
+## 🧱 Files Added
 
-X-RateLimit-Remaining
+- `src/redis/redis.module.ts` → Provides the shared Redis client via `'REDIS'` token.  
+- `OrderModule` → Imports `RedisModule` and registers `LocationRateLimitGuard`.
 
-X-RateLimit-Reset
+---
 
-Properly returns HTTP 429 Too Many Requests with JSON message when exceeded.
+## 📘 Example Response
 
- Example
+```bash
 HTTP/1.1 429 Too Many Requests
 X-RateLimit-Limit: 10
 X-RateLimit-Remaining: 0
@@ -63,63 +67,85 @@ X-RateLimit-Reset: 1731392640
   "message": "Rate limit exceeded for this location"
 }
 
- Files Added
 
-src/redis/redis.module.ts → Provides shared Redis client ('REDIS' token).
+---
 
-OrderModule imports RedisModule and provides LocationRateLimitGuard.
+## ⚙️ **`TASK3_DBOptimization.md`**
 
-Task 3: Database Query Optimization
+```markdown
+# ⚙️ Task 3 — Database Query Optimization
 
-Priority: High
-File: src/order/order.service.ts → createOrder()
+**Priority:** High  
+**File:** `src/order/order.service.ts` → `createOrder()`  
 
-Implemented Fixes
+---
 
-Eliminated N+1 query issue by bulk fetching products:
+## 🧩 Implemented Fixes
 
-const products = await this.productRepository.find({ where: { id: In(productIds) } });
+- **Eliminated N+1 Query Issue**
+  - Replaced per-item product lookups with a single bulk fetch:
+    ```ts
+    const products = await this.productRepository.find({ where: { id: In(productIds) } });
+    ```
+- **Introduced Transactional Workflow**
+  - All operations (stock updates, order save, and item save) now run within one `DataSource.transaction()` block:
+    ```ts
+    return this.ds.transaction(async manager => {
+      // update stock, create order, create order items atomically
+    });
+    ```
+- **Ensured Atomicity**
+  - If any operation fails, the entire transaction rolls back.
+- **Reduced Database Round-Trips**
+  - Before: Multiple queries per product and per save.
+  - After: One bulk fetch + one transaction commit.
 
+---
 
-Performed all writes (order, items, stock updates) in a single transaction:
+## ⚡ Performance Comparison
 
-return this.ds.transaction(async manager => {
-  // save order, items, and update stock atomically
-});
+| Operation | Before | After |
+|------------|---------|--------|
+| Product Fetch | N queries (1 per item) | Single bulk query |
+| Writes | Multiple separate saves | One atomic transaction |
+| Consistency | Partial commits possible | All-or-nothing guaranteed |
 
+---
 
-Reduced DB round-trips from O(n) → O(1).
+## ✅ Benefits
 
-Ensured atomic operations with rollback safety.
+- Reduced query overhead → faster order creation.
+- Guaranteed data consistency even on partial failure.
+- Improved scalability for high-volume order traffic.
+- Clear, maintainable transaction boundaries.
 
- Performance Improvement
-Operation	Before	After
-Product Fetch	Multiple SELECTs per item	Single bulk query
-Writes	Individual saves	Transactional batch
-Consistency	Partial saves possible	All-or-nothing atomicity
-Task 4: Unit & Integration Testing
+# 🧪 Task 4 — Unit & Integration Testing
 
-Priority: High
-Files:
+**Priority:** High  
+**Files:**
+- `src/order/order.service.spec.ts`
+- `src/order/totals.service.spec.ts`
+- `src/order/validator.service.spec.ts`
 
-src/order/order.service.spec.ts
+---
 
-src/order/totals.service.spec.ts
+## 🧩 Implemented Tests
 
-src/order/validator.service.spec.ts
+- Added **unit** and **integration** tests for all order-related services.
+- Mocked dependencies (TypeORM repositories, Redis client, DomainEvents).
+- Covered both **success** and **error** cases:
+  - ✅ Successful order creation  
+  - ❌ Insufficient stock  
+  - ❌ Invalid customer/location IDs  
+  - ❌ Restricted updates on delivered/cancelled orders  
 
- Implemented Tests
+---
 
-Added mocked repositories for isolation.
+## 🧠 Example Mock Setup
 
-Covered both success and failure scenarios:
-
-Valid order creation
-
-Insufficient stock
-
-Invalid IDs
-
-Delivered/cancelled state updates
-
-Achieved >80% coverage overall.
+```ts
+jest.mock('../shared/domain-events', () => ({
+  DomainEvents: jest.fn().mockImplementation(() => ({
+    publish: jest.fn(),
+  })),
+}));
