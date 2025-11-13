@@ -18,11 +18,11 @@ export class DomainEvents {
   }
 
   private sendOrderConfirmationEmail(email: string, orderId: string) {
-    console.log(`📧 Order Confirmation: Sending confirmation email to ${email} for order ${orderId}`);
+    console.log(`Order Confirmation: Sending confirmation email to ${email} for order ${orderId}`);
   }
 
   private sendShippingNotification(email: string, orderId: string) {
-    console.log(`🚚 Shipping Notification: Sending shipping update to ${email} for order ${orderId}`);
+    console.log(`Shipping Notification: Sending shipping update to ${email} for order ${orderId}`);
   }
 }
 
